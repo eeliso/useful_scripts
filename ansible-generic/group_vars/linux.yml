@@ -6,6 +6,7 @@
 # --- Connection ---
 ansible_connection: ssh
 ansible_user: root
+ansible_python_interpreter: auto
 
 # --- Defaults ---
 config_dest_dir: /etc/
