@@ -1,0 +1,17 @@
+---
+# =============================================================================
+# Linux Group Variables
+# =============================================================================
+
+# --- Connection ---
+ansible_connection: ssh
+ansible_user: ansible
+
+# --- Defaults ---
+config_dest_dir: /etc/
+patch: true
+
+# --- Patching ---
+# Reboot the server automatically after patching if required
+patching_auto_reboot: true
+patching_reboot_timeout: 600

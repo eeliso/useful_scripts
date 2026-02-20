@@ -1,0 +1,51 @@
+---
+# =============================================================================
+# Role: packages — Install packages on Linux and Windows hosts
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux — uses ansible.builtin.package (auto-detects apt/yum/dnf)
+# -----------------------------------------------------------------------------
+- name: Install packages on Linux
+  when: ansible_os_family in ['Debian', 'RedHat']
+  block:
+    - name: Update apt cache (Debian/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Linux packages
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ packages | default([]) }}"
+      register: linux_package_result
+
+    - name: Display Linux package installation results
+      ansible.builtin.debug:
+        msg: "Installed {{ linux_package_result.results | selectattr('changed', 'equalto', true) | list | length }} new package(s)"
+      when: linux_package_result is defined
+
+# -----------------------------------------------------------------------------
+# Windows — uses Chocolatey
+# -----------------------------------------------------------------------------
+- name: Install packages on Windows
+  when: ansible_os_family == 'Windows'
+  block:
+    - name: Ensure Chocolatey is installed
+      chocolatey.chocolatey.win_chocolatey:
+        name: chocolatey
+        state: present
+
+    - name: Install Windows packages via Chocolatey
+      chocolatey.chocolatey.win_chocolatey:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ packages | default([]) }}"
+      register: win_package_result
+
+    - name: Display Windows package installation results
+      ansible.builtin.debug:
+        msg: "Installed {{ win_package_result.results | selectattr('changed', 'equalto', true) | list | length }} new package(s)"
+      when: win_package_result is defined

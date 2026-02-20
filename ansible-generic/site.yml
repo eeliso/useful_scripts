@@ -1,0 +1,71 @@
+---
+# =============================================================================
+# Master Playbook — Configuration Management & OS Patching
+# =============================================================================
+# Usage:
+#   ansible-playbook site.yml                                  # all hosts (prompts for passwords)
+#   ansible-playbook site.yml --limit "linux"                  # linux only
+#   ansible-playbook site.yml --limit "windows"                # windows only
+#   ansible-playbook site.yml --limit "web01.corp.com"         # single host
+#   ansible-playbook site.yml --tags packages                  # packages only
+#   ansible-playbook site.yml --tags patching                  # patching only
+#   ansible-playbook site.yml --tags config_files              # config only
+#   ansible-playbook site.yml --check --diff                   # dry-run
+#
+# Alternatively, use --ask-pass instead of the built-in prompts:
+#   ansible-playbook site.yml --ask-pass                       # single password for all
+#   ansible-playbook site.yml --ask-pass --ask-become-pass     # + sudo password
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux Hosts
+# -----------------------------------------------------------------------------
+- name: Configure Linux Servers
+  hosts: linux
+  become: true
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter SSH password for Linux hosts"
+      private: true
+
+    - name: ansible_become_password
+      prompt: "Enter sudo password for Linux hosts (press Enter if same as SSH)"
+      private: true
+      default: ""
+
+  pre_tasks:
+    - name: Default become password to SSH password if not provided
+      ansible.builtin.set_fact:
+        ansible_become_password: "{{ ansible_password }}"
+      when: ansible_become_password | length == 0
+      no_log: true
+
+  roles:
+    - role: packages
+      tags: [packages]
+    - role: patching
+      tags: [patching]
+    - role: config_files
+      tags: [config_files]
+
+# -----------------------------------------------------------------------------
+# Windows Hosts
+# -----------------------------------------------------------------------------
+- name: Configure Windows Servers
+  hosts: windows
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter WinRM password for Windows hosts"
+      private: true
+
+  roles:
+    - role: packages
+      tags: [packages]
+    - role: patching
+      tags: [patching]
+    - role: config_files
+      tags: [config_files]

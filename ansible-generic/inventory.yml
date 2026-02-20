@@ -1,0 +1,179 @@
+---
+# =============================================================================
+# Server Inventory
+# =============================================================================
+# Define all managed servers here. Each host belongs to either the 'linux' or
+# 'windows' group. Per-host variables control which packages are installed,
+# which config files are pushed, and whether OS patching is applied.
+#
+# Usage:
+#   ansible-playbook site.yml                          # run against all hosts
+#   ansible-playbook site.yml --limit "web01.corp.com" # run against one host
+#   ansible-playbook site.yml --check --diff           # dry-run
+# =============================================================================
+
+all:
+  children:
+    linux:
+      hosts:
+        siem.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        elastic1.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        elastic2.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        elastic3.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        ntp.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        ns1.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        ns2.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        extranet.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        www.ldil.vle.fi:
+          packages:
+            - filebeat
+          config_files: []
+          patch: false
+
+        mail.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        helpdesk.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        intra.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        mysql.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        ca.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        proxy.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        dev-ws2.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        gitlab.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+        hr.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - filebeat
+          config_files: []
+          patch: true
+
+    windows:
+      hosts:
+        monitor.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - fireeye-agent
+          config_files: []
+          patch: true
+
+        dc.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - fireeye-agent
+          config_files: []
+          patch: true
+
+        files.ldil.vle.fi:
+          packages:
+            - fireeye-agent
+            - filebeat
+          config_files: []
+          patch: false
+
+        dev-ws1.ldil.vle.fi:
+          packages:
+            - elastic-agent
+            - fireeye-agent
+          config_files: []
+          patch: true
+
+        legacy-app.ldil.vle.fi:
+          packages:
+            - fireeye-agent
+            - filebeat
+          config_files: []
+          patch: false

@@ -1,0 +1,7 @@
+# Place configuration files here that you want to distribute to servers.
+# Reference them by filename in inventory.yml under each host's `config_files` list.
+#
+# Example:
+#   files/sshd_config      -> pushed to Linux hosts listing "sshd_config"
+#   files/nginx.conf       -> pushed to Linux hosts listing "nginx.conf"
+#   files/logon_banner.txt -> pushed to Windows hosts listing "logon_banner.txt"
