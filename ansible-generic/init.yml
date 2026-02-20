@@ -20,6 +20,20 @@
       private: true
 
   tasks:
+    # Fix CentOS 7 EOL repos — mirrors are dead, switch to vault.centos.org
+    - name: Fix CentOS 7 EOL repository URLs
+      ansible.builtin.raw: |
+        if [ -f /etc/centos-release ] && grep -q "release 7" /etc/centos-release 2>/dev/null; then
+          sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/CentOS-*.repo
+          sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*.repo
+          yum clean all
+          echo "CentOS 7 repos fixed to vault.centos.org"
+        else
+          echo "Not CentOS 7, skipping repo fix"
+        fi
+      register: repo_fix
+      changed_when: "'repos fixed' in repo_fix.stdout"
+
     # CentOS/RHEL — try yum first (CentOS 6/7), then dnf (CentOS 8+)
     - name: Install Python 3 via yum/dnf (RedHat-based)
       ansible.builtin.raw: |
