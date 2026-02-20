@@ -68,11 +68,15 @@
     - name: Install Python 3.8+ on CentOS 8
       ansible.builtin.raw: |
         if [ -f /etc/centos-release ] && grep -q "release 8" /etc/centos-release 2>/dev/null; then
-          if python3 -c "import sys; sys.exit(0 if sys.version_info >= (3,7) else 1)" 2>/dev/null; then
-            echo "Python 3.7+ already available"
+          if /usr/local/bin/python3 --version 2>/dev/null | grep -qE "3\.([89]|[1-9][0-9])"; then
+            echo "Python 3.8+ already available at /usr/local/bin/python3"
           else
             dnf install -y python39 || dnf install -y python38
-            alternatives --set python3 /usr/bin/python3.9 2>/dev/null || alternatives --set python3 /usr/bin/python3.8 2>/dev/null || true
+            if [ -f /usr/bin/python3.9 ]; then
+              ln -sf /usr/bin/python3.9 /usr/local/bin/python3
+            elif [ -f /usr/bin/python3.8 ]; then
+              ln -sf /usr/bin/python3.8 /usr/local/bin/python3
+            fi
             echo "Python 3.8+ installed via AppStream"
           fi
         else
