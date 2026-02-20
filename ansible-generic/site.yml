@@ -22,25 +22,12 @@
 # -----------------------------------------------------------------------------
 - name: Configure Linux Servers
   hosts: linux
-  become: true
   gather_facts: true
 
   vars_prompt:
     - name: ansible_password
       prompt: "Enter SSH password for Linux hosts"
       private: true
-
-    - name: ansible_become_password
-      prompt: "Enter sudo password for Linux hosts (press Enter if same as SSH)"
-      private: true
-      default: ""
-
-  pre_tasks:
-    - name: Default become password to SSH password if not provided
-      ansible.builtin.set_fact:
-        ansible_become_password: "{{ ansible_password }}"
-      when: ansible_become_password | length == 0
-      no_log: true
 
   roles:
     - role: packages
