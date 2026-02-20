@@ -55,8 +55,6 @@
     - name: Extract FireEye .tgz
       ansible.builtin.shell:
         cmd: tar xzf /tmp/fireeye_install/fireeye-agent.tgz -C /tmp/fireeye_install
-      args:
-        warn: false
 
     - name: Find installer script or RPM in extracted files
       ansible.builtin.find:
