@@ -40,27 +40,27 @@
     - "'fireeye-agent' in (packages | default([]))"
     - fireeye_package is defined
   block:
-    - name: Create temp directory for FireEye install
-      ansible.builtin.tempfile:
+    - name: Create FireEye install directory
+      ansible.builtin.file:
+        path: /tmp/fireeye_install
         state: directory
-        prefix: fireeye_
-      register: fireeye_tmpdir
+        mode: "0755"
 
     - name: Copy FireEye .tgz to remote host
       ansible.builtin.copy:
         src: "{{ fireeye_package }}"
-        dest: "{{ fireeye_tmpdir.path }}/fireeye-agent.tgz"
+        dest: /tmp/fireeye_install/fireeye-agent.tgz
         mode: "0644"
 
     - name: Extract FireEye .tgz
       ansible.builtin.unarchive:
-        src: "{{ fireeye_tmpdir.path }}/fireeye-agent.tgz"
-        dest: "{{ fireeye_tmpdir.path }}"
+        src: /tmp/fireeye_install/fireeye-agent.tgz
+        dest: /tmp/fireeye_install
         remote_src: true
 
     - name: Find installer script or RPM in extracted files
       ansible.builtin.find:
-        paths: "{{ fireeye_tmpdir.path }}"
+        paths: /tmp/fireeye_install
         patterns: ["*.rpm", "*.deb", "install.sh", "agent_install.sh"]
         recurse: true
       register: fireeye_installer_files
@@ -83,13 +83,13 @@
     - name: Run FireEye install script (if present, no RPM/DEB found)
       ansible.builtin.shell:
         cmd: "bash {{ item.path }}"
-        chdir: "{{ fireeye_tmpdir.path }}"
+        chdir: /tmp/fireeye_install
       loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*install.*\\.sh$') | list }}"
       when: fireeye_installer_files.files | selectattr('path', 'match', '.*\\.(rpm|deb)$') | list | length == 0
 
-    - name: Clean up FireEye temp directory
+    - name: Clean up FireEye install directory
       ansible.builtin.file:
-        path: "{{ fireeye_tmpdir.path }}"
+        path: /tmp/fireeye_install
         state: absent
 
 # -----------------------------------------------------------------------------
@@ -124,25 +124,24 @@
     - "'fireeye-agent' in (packages | default([]))"
     - fireeye_package is defined
   block:
-    - name: Create temp directory for FireEye install
-      ansible.windows.win_tempfile:
+    - name: Create FireEye install directory
+      ansible.windows.win_file:
+        path: C:\Temp\fireeye_install
         state: directory
-        prefix: fireeye_
-      register: fireeye_tmpdir_win
 
     - name: Copy FireEye .tgz to Windows host
       ansible.windows.win_copy:
         src: "{{ fireeye_package }}"
-        dest: "{{ fireeye_tmpdir_win.path }}\\fireeye-agent.tgz"
+        dest: C:\Temp\fireeye_install\fireeye-agent.tgz
 
     - name: Extract FireEye .tgz on Windows
       community.windows.win_unzip:
-        src: "{{ fireeye_tmpdir_win.path }}\\fireeye-agent.tgz"
-        dest: "{{ fireeye_tmpdir_win.path }}"
+        src: C:\Temp\fireeye_install\fireeye-agent.tgz
+        dest: C:\Temp\fireeye_install
 
     - name: Find MSI installer in extracted files
       ansible.windows.win_find:
-        paths: "{{ fireeye_tmpdir_win.path }}"
+        paths: C:\Temp\fireeye_install
         patterns: ["*.msi"]
         recurse: true
       register: fireeye_msi_files
@@ -153,7 +152,7 @@
         state: present
       loop: "{{ fireeye_msi_files.files }}"
 
-    - name: Clean up FireEye temp directory
+    - name: Clean up FireEye install directory
       ansible.windows.win_file:
-        path: "{{ fireeye_tmpdir_win.path }}"
+        path: C:\Temp\fireeye_install
         state: absent
