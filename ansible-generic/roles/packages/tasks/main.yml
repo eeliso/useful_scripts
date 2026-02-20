@@ -2,11 +2,15 @@
 # =============================================================================
 # Role: packages — Install packages on Linux and Windows hosts
 # =============================================================================
+# Handles two types of packages:
+#   1. Repo-based packages (filebeat, etc.) — installed via yum/apt/Chocolatey
+#   2. FireEye agent — installed from a local .tgz on the Ansible control node
+# =============================================================================
 
 # -----------------------------------------------------------------------------
-# Linux — uses ansible.builtin.package (auto-detects apt/yum/dnf)
+# Linux — repo-based packages (yum/apt)
 # -----------------------------------------------------------------------------
-- name: Install packages on Linux
+- name: Install repo-based packages on Linux
   when: ansible_os_family in ['Debian', 'RedHat']
   block:
     - name: Update apt cache (Debian/Ubuntu)
@@ -15,22 +19,83 @@
         cache_valid_time: 3600
       when: ansible_os_family == 'Debian'
 
-    - name: Install Linux packages
+    - name: Install Linux packages from repos
       ansible.builtin.package:
         name: "{{ item }}"
         state: present
-      loop: "{{ packages | default([]) }}"
+      loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
       register: linux_package_result
 
     - name: Display Linux package installation results
       ansible.builtin.debug:
-        msg: "Installed {{ linux_package_result.results | selectattr('changed', 'equalto', true) | list | length }} new package(s)"
-      when: linux_package_result is defined
+        msg: "Installed {{ linux_package_result.results | selectattr('changed', 'equalto', true) | list | length }} repo package(s)"
+      when: linux_package_result.results | default([]) | length > 0
 
 # -----------------------------------------------------------------------------
-# Windows — uses Chocolatey
+# Linux — FireEye agent from local .tgz
 # -----------------------------------------------------------------------------
-- name: Install packages on Windows
+- name: Install FireEye agent on Linux
+  when:
+    - ansible_os_family in ['Debian', 'RedHat']
+    - "'fireeye-agent' in (packages | default([]))"
+    - fireeye_package is defined
+  block:
+    - name: Create temp directory for FireEye install
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: fireeye_
+      register: fireeye_tmpdir
+
+    - name: Copy FireEye .tgz to remote host
+      ansible.builtin.copy:
+        src: "{{ fireeye_package }}"
+        dest: "{{ fireeye_tmpdir.path }}/fireeye-agent.tgz"
+        mode: "0644"
+
+    - name: Extract FireEye .tgz
+      ansible.builtin.unarchive:
+        src: "{{ fireeye_tmpdir.path }}/fireeye-agent.tgz"
+        dest: "{{ fireeye_tmpdir.path }}"
+        remote_src: true
+
+    - name: Find installer script or RPM in extracted files
+      ansible.builtin.find:
+        paths: "{{ fireeye_tmpdir.path }}"
+        patterns: ["*.rpm", "*.deb", "install.sh", "agent_install.sh"]
+        recurse: true
+      register: fireeye_installer_files
+
+    - name: Install FireEye RPM package (RedHat)
+      ansible.builtin.yum:
+        name: "{{ item.path }}"
+        state: present
+        disable_gpg_check: true
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*\\.rpm$') | list }}"
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install FireEye DEB package (Debian)
+      ansible.builtin.apt:
+        deb: "{{ item.path }}"
+        state: present
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*\\.deb$') | list }}"
+      when: ansible_os_family == 'Debian'
+
+    - name: Run FireEye install script (if present, no RPM/DEB found)
+      ansible.builtin.shell:
+        cmd: "bash {{ item.path }}"
+        chdir: "{{ fireeye_tmpdir.path }}"
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*install.*\\.sh$') | list }}"
+      when: fireeye_installer_files.files | selectattr('path', 'match', '.*\\.(rpm|deb)$') | list | length == 0
+
+    - name: Clean up FireEye temp directory
+      ansible.builtin.file:
+        path: "{{ fireeye_tmpdir.path }}"
+        state: absent
+
+# -----------------------------------------------------------------------------
+# Windows — repo-based packages via Chocolatey
+# -----------------------------------------------------------------------------
+- name: Install repo-based packages on Windows
   when: ansible_os_family == 'Windows'
   block:
     - name: Ensure Chocolatey is installed
@@ -42,10 +107,53 @@
       chocolatey.chocolatey.win_chocolatey:
         name: "{{ item }}"
         state: present
-      loop: "{{ packages | default([]) }}"
+      loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
       register: win_package_result
 
     - name: Display Windows package installation results
       ansible.builtin.debug:
-        msg: "Installed {{ win_package_result.results | selectattr('changed', 'equalto', true) | list | length }} new package(s)"
-      when: win_package_result is defined
+        msg: "Installed {{ win_package_result.results | selectattr('changed', 'equalto', true) | list | length }} repo package(s)"
+      when: win_package_result.results | default([]) | length > 0
+
+# -----------------------------------------------------------------------------
+# Windows — FireEye agent from local .tgz
+# -----------------------------------------------------------------------------
+- name: Install FireEye agent on Windows
+  when:
+    - ansible_os_family == 'Windows'
+    - "'fireeye-agent' in (packages | default([]))"
+    - fireeye_package is defined
+  block:
+    - name: Create temp directory for FireEye install
+      ansible.windows.win_tempfile:
+        state: directory
+        prefix: fireeye_
+      register: fireeye_tmpdir_win
+
+    - name: Copy FireEye .tgz to Windows host
+      ansible.windows.win_copy:
+        src: "{{ fireeye_package }}"
+        dest: "{{ fireeye_tmpdir_win.path }}\\fireeye-agent.tgz"
+
+    - name: Extract FireEye .tgz on Windows
+      community.windows.win_unzip:
+        src: "{{ fireeye_tmpdir_win.path }}\\fireeye-agent.tgz"
+        dest: "{{ fireeye_tmpdir_win.path }}"
+
+    - name: Find MSI installer in extracted files
+      ansible.windows.win_find:
+        paths: "{{ fireeye_tmpdir_win.path }}"
+        patterns: ["*.msi"]
+        recurse: true
+      register: fireeye_msi_files
+
+    - name: Install FireEye MSI package
+      ansible.windows.win_package:
+        path: "{{ item.path }}"
+        state: present
+      loop: "{{ fireeye_msi_files.files }}"
+
+    - name: Clean up FireEye temp directory
+      ansible.windows.win_file:
+        path: "{{ fireeye_tmpdir_win.path }}"
+        state: absent

@@ -18,125 +18,127 @@ all:
       hosts:
         siem.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         elastic1.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         elastic2.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         elastic3.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         ntp.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         ns1.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         ns2.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         extranet.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         www.ldil.vle.fi:
           packages:
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: false
 
         mail.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         helpdesk.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         intra.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         mysql.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         ca.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         proxy.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         dev-ws2.ldil.vle.fi:
+          ansible_user: user
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         gitlab.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
 
         hr.ldil.vle.fi:
           packages:
-            - elastic-agent
+            - fireeye-agent
             - filebeat
           config_files: []
           patch: true
@@ -145,15 +147,15 @@ all:
       hosts:
         monitor.ldil.vle.fi:
           packages:
-            - elastic-agent
             - fireeye-agent
+            - filebeat
           config_files: []
           patch: true
 
         dc.ldil.vle.fi:
           packages:
-            - elastic-agent
             - fireeye-agent
+            - filebeat
           config_files: []
           patch: true
 
@@ -165,9 +167,10 @@ all:
           patch: false
 
         dev-ws1.ldil.vle.fi:
+          ansible_user: user
           packages:
-            - elastic-agent
             - fireeye-agent
+            - filebeat
           config_files: []
           patch: true
 

@@ -124,14 +124,15 @@ Set in `group_vars/linux.yml` or `group_vars/windows.yml`:
 | `patching_auto_reboot` | `true` | Reboot after patching if required |
 | `patching_reboot_timeout` | `600`/`1200` | Seconds to wait for reboot |
 | `config_dest_dir` | `/etc/` or `C:\ProgramData\configs\` | Where config files are placed |
+| `fireeye_package` | *(must set)* | Path to FireEye `.tgz` installer on the Ansible control node |
 
 ## Security Packages
 
 The inventory is pre-configured with these security-focused packages:
 
-| Package | Linux | Windows | Purpose |
-|---|---|---|---|
-| `fail2ban` | ✅ | — | Brute-force protection |
-| `elastic-agent` | ✅ | ✅ | Elastic SIEM agent |
-| `filebeat` | ✅ | ✅ | Log shipping to Elastic |
-| `fireeye-agent` | — | ✅ | FireEye EDR |
+| Package | Linux | Windows | Install Method | Purpose |
+|---|---|---|---|---|
+| `fireeye-agent` | ✅ | ✅ | Local `.tgz` | FireEye/Trellix EDR agent |
+| `filebeat` | ✅ | ✅ | Repo/Chocolatey | Log shipping to Elastic |
+
+> **Note:** `fireeye-agent` is installed from a local `.tgz` archive. Set the `fireeye_package` variable in `group_vars/linux.yml` and `group_vars/windows.yml` to the path on your Ansible control node.
