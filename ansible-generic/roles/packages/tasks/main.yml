@@ -129,14 +129,14 @@
         path: C:\Temp\fireeye_install
         state: directory
 
-    - name: Copy FireEye .tgz to Windows host
+    - name: Copy FireEye .zip to Windows host
       ansible.windows.win_copy:
         src: "{{ fireeye_package }}"
-        dest: C:\Temp\fireeye_install\fireeye-agent.tgz
+        dest: C:\Temp\fireeye_install\fireeye-agent.zip
 
-    - name: Extract FireEye .tgz on Windows
+    - name: Extract FireEye .zip on Windows
       community.windows.win_unzip:
-        src: C:\Temp\fireeye_install\fireeye-agent.tgz
+        src: C:\Temp\fireeye_install\fireeye-agent.zip
         dest: C:\Temp\fireeye_install
 
     - name: Find MSI installer in extracted files

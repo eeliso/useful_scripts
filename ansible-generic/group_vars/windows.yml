@@ -14,8 +14,8 @@ ansible_user: Administrator
 config_dest_dir: C:\ProgramData\configs\
 patch: true
 
-# --- FireEye Agent (local .tgz on control node) ---
-fireeye_package: /files/IMAGE_HX_AGENT_WIN_36.30.37.tgz
+# --- FireEye Agent (local .zip on control node) ---
+fireeye_package: /home/kali/dev/useful_scripts/ansible-generic/files/IMAGE_HX_AGENT_WIN_36.30.37.zip
 
 # --- Patching ---
 # Categories to install via Windows Update
