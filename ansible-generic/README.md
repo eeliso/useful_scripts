@@ -19,12 +19,17 @@ Ansible-based configuration management for mixed Linux/Windows server environmen
 
 3. **Place config files** — Drop any configuration files into the `files/` directory.
 
-4. **Dry run** to see what would change:
+4. **Bootstrap Python** on Linux targets (first-time only):
+   ```bash
+   ansible-playbook init.yml
+   ```
+
+5. **Dry run** to see what would change:
    ```bash
    ansible-playbook site.yml --check --diff
    ```
 
-5. **Apply** to all hosts:
+6. **Apply** to all hosts:
    ```bash
    ansible-playbook site.yml
    ```

@@ -1,0 +1,54 @@
+---
+# =============================================================================
+# Bootstrap Playbook — Install Python on Linux targets
+# =============================================================================
+# Run this ONCE before using site.yml. The 'raw' module works over SSH
+# without needing Python on the remote host.
+#
+# Usage:
+#   ansible-playbook init.yml --ask-pass
+# =============================================================================
+
+- name: Bootstrap Python on Linux hosts
+  hosts: linux
+  gather_facts: false
+  become: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter SSH password for Linux hosts"
+      private: true
+
+  tasks:
+    # CentOS/RHEL — try yum first (CentOS 6/7), then dnf (CentOS 8+)
+    - name: Install Python 3 via yum/dnf (RedHat-based)
+      ansible.builtin.raw: |
+        if command -v python3 >/dev/null 2>&1; then
+          echo "Python 3 is already installed"
+        elif command -v dnf >/dev/null 2>&1; then
+          dnf install -y python3
+        elif command -v yum >/dev/null 2>&1; then
+          yum install -y python3 || yum install -y python
+        fi
+      register: python_install
+      changed_when: "'already installed' not in python_install.stdout"
+
+    # Debian/Ubuntu — use apt
+    - name: Install Python 3 via apt (Debian-based)
+      ansible.builtin.raw: |
+        if command -v python3 >/dev/null 2>&1; then
+          echo "Python 3 is already installed"
+        elif command -v apt-get >/dev/null 2>&1; then
+          apt-get update -qq && apt-get install -y python3
+        fi
+      register: python_install_apt
+      changed_when: "'already installed' not in python_install_apt.stdout"
+
+    # Verify Python is available
+    - name: Verify Python installation
+      ansible.builtin.raw: python3 --version || python --version
+      register: python_version
+
+    - name: Show Python version
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ python_version.stdout | trim }}"
