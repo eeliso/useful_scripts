@@ -150,22 +150,22 @@
   block:
     - name: Create FireEye install directory
       ansible.windows.win_file:
-        path: 'C:\Temp\fireeye_install'
+        path: C:/Windows/Temp/fireeye_install
         state: directory
 
     - name: Copy FireEye .zip to Windows host
       ansible.windows.win_copy:
         src: "{{ fireeye_package }}"
-        dest: 'C:\Temp\fireeye_install\fireeye-agent.zip'
+        dest: C:/Windows/Temp/fireeye_install/fireeye-agent.zip
 
     - name: Extract FireEye .zip on Windows
       community.windows.win_unzip:
-        src: 'C:\Temp\fireeye_install\fireeye-agent.zip'
-        dest: 'C:\Temp\fireeye_install'
+        src: C:/Windows/Temp/fireeye_install/fireeye-agent.zip
+        dest: C:/Windows/Temp/fireeye_install
 
     - name: Find MSI installer in extracted files
       ansible.windows.win_find:
-        paths: 'C:\Temp\fireeye_install'
+        paths: C:/Windows/Temp/fireeye_install
         patterns: ["*.msi"]
         recurse: true
       register: fireeye_msi_files
@@ -178,5 +178,5 @@
 
     - name: Clean up FireEye install directory
       ansible.windows.win_file:
-        path: 'C:\Temp\fireeye_install'
+        path: C:/Windows/Temp/fireeye_install
         state: absent
