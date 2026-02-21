@@ -13,6 +13,17 @@
 - name: Install repo-based packages on Linux
   when: ansible_os_family in ['Debian', 'RedHat']
   block:
+    - name: Set skip_if_unavailable for all yum/dnf repos (RedHat)
+      ansible.builtin.shell:
+        cmd: |
+          if command -v dnf >/dev/null 2>&1; then
+            dnf config-manager --save --setopt=\*.skip_if_unavailable=1
+          elif command -v yum >/dev/null 2>&1; then
+            yum-config-manager --save --setopt=\*.skip_if_unavailable=1 2>/dev/null || sed -i '/^\[/a skip_if_unavailable=1' /etc/yum.repos.d/*.repo
+          fi
+      when: ansible_os_family == 'RedHat'
+      changed_when: false
+
     - name: Update apt cache (Debian/Ubuntu)
       ansible.builtin.apt:
         update_cache: true
@@ -119,6 +130,9 @@
       ansible.windows.win_shell: |
         # Force TLS 1.2 for downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+        # Bypass SSL certificate validation (old servers have outdated root certs)
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
         # Check if Chocolatey is already installed
         if (Get-Command choco -ErrorAction SilentlyContinue) {
