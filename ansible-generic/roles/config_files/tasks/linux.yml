@@ -1,0 +1,20 @@
+---
+# =============================================================================
+# Config Files — Linux tasks
+# =============================================================================
+
+- name: Copy config files to Linux host
+  ansible.builtin.copy:
+    src: "files/{{ item }}"
+    dest: "{{ config_dest_dir | default('/etc/') }}{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  loop: "{{ config_files }}"
+  register: linux_copy_result
+
+- name: Display Linux file copy results
+  ansible.builtin.debug:
+    msg: "Copied {{ linux_copy_result.results | selectattr('changed', 'equalto', true) | list | length }} file(s)"
+  when: linux_copy_result is defined

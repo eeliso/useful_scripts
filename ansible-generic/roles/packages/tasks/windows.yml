@@ -1,0 +1,188 @@
+---
+# =============================================================================
+# Packages — Windows tasks
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Repo-based packages via Chocolatey
+# -----------------------------------------------------------------------------
+- name: Update root certificates from Windows Update
+  ansible.windows.win_shell: |
+    # certutil -generateSSTFromWU uses HTTP to fetch root certs — works even with broken SSL
+    $sstPath = "$env:TEMP\roots.sst"
+    certutil -generateSSTFromWU $sstPath 2>$null
+    if (Test-Path $sstPath) {
+        $sst = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+        $sst.Import($sstPath)
+        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store('Root','LocalMachine')
+        $store.Open('MaxAllowed')
+        foreach ($cert in $sst) {
+            $store.Add($cert)
+        }
+        $store.Close()
+        Remove-Item $sstPath -Force
+        Write-Host "Updated $($sst.Count) root certificates"
+    } else {
+        Write-Host "Root certs already up to date"
+    }
+  changed_when: false
+
+- name: Ensure TLS 1.2 and install Chocolatey
+  ansible.windows.win_shell: |
+    # Force TLS 1.2 for downloads
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    # Check if Chocolatey is already installed
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        Write-Host "Chocolatey is already installed"
+        exit 0
+    }
+
+    # Check .NET Framework version to decide Chocolatey version
+    $netRelease = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -ErrorAction SilentlyContinue).Release
+    if ($netRelease -ge 528040) {
+        # .NET 4.8+ present — install latest Chocolatey
+        $installScript = (New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')
+        Invoke-Expression $installScript
+    } else {
+        # .NET < 4.8 — install Chocolatey 1.x
+        $env:chocolateyVersion = '1.4.0'
+        $installScript = (New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')
+        Invoke-Expression $installScript
+    }
+  register: choco_install
+  changed_when: "'already installed' not in choco_install.stdout"
+
+- name: Install Windows packages via Chocolatey
+  ansible.windows.win_shell: |
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    # Try normal choco install first
+    $output = & choco install {{ item }} -y --no-progress 2>&1 | Out-String
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host $output
+        exit 0
+    }
+
+    # If SSL failure, download .nupkg via PowerShell and install from local
+    if ($output -match "certificate|SSL|trust") {
+        Write-Host "SSL issue detected, downloading package manually..."
+        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+        try {
+            $nupkgPath = "C:\Windows\Temp\{{ item }}.nupkg"
+            (New-Object System.Net.WebClient).DownloadFile(
+                "https://community.chocolatey.org/api/v2/package/{{ item }}",
+                $nupkgPath
+            )
+            choco install {{ item }} -y --no-progress --source="C:\Windows\Temp"
+        } finally {
+            [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
+            Remove-Item "C:\Windows\Temp\{{ item }}.nupkg" -Force -ErrorAction SilentlyContinue
+        }
+    } else {
+        Write-Host $output
+        exit 1
+    }
+  loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
+  register: win_package_result
+  changed_when: "'installed 0/' not in win_package_result.stdout | default('') | lower"
+  failed_when:
+    - win_package_result.rc != 0
+    - "'already installed' not in win_package_result.stdout | default('') | lower"
+
+- name: Display Windows package installation results
+  ansible.builtin.debug:
+    msg: "Processed {{ packages | default([]) | reject('equalto', 'fireeye-agent') | list | length }} package(s)"
+  when: packages | default([]) | length > 0
+
+# -----------------------------------------------------------------------------
+# FireEye agent from local .zip
+# -----------------------------------------------------------------------------
+- name: Install FireEye agent on Windows
+  when:
+    - "'fireeye-agent' in (packages | default([]))"
+    - fireeye_package is defined
+  block:
+    - name: Create FireEye install directory
+      ansible.windows.win_file:
+        path: C:/Windows/Temp/fireeye_install
+        state: directory
+
+    - name: Copy FireEye .zip to Windows host
+      ansible.windows.win_copy:
+        src: "{{ fireeye_package }}"
+        dest: C:/Windows/Temp/fireeye_install/fireeye-agent.zip
+
+    - name: Extract FireEye .zip on Windows
+      community.windows.win_unzip:
+        src: C:/Windows/Temp/fireeye_install/fireeye-agent.zip
+        dest: C:/Windows/Temp/fireeye_install
+
+    - name: Find MSI installer in extracted files
+      ansible.windows.win_find:
+        paths: C:/Windows/Temp/fireeye_install
+        patterns: ["*.msi"]
+        recurse: true
+      register: fireeye_msi_files
+
+    - name: Install FireEye MSI package
+      ansible.windows.win_package:
+        path: "{{ item.path }}"
+        state: present
+      loop: "{{ fireeye_msi_files.files }}"
+
+    - name: Find agent_config.json in extracted files
+      ansible.windows.win_find:
+        paths: C:/Windows/Temp/fireeye_install
+        patterns: ["agent_config.json"]
+        recurse: true
+      register: fireeye_win_config_files
+
+    - name: Check if FireEye agent service is already running
+      ansible.windows.win_shell: |
+        $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -eq 'Running') { exit 0 } else { exit 1 }
+      register: win_xagt_status
+      changed_when: false
+      failed_when: false
+
+    - name: Find xagt.exe on the system
+      ansible.windows.win_find:
+        paths:
+          - C:/Program Files/FireEye
+          - C:/Program Files (x86)/FireEye
+          - C:/Program Files/Trellix
+          - C:/Program Files (x86)/Trellix
+        patterns: ["xagt.exe"]
+        recurse: true
+      register: xagt_exe_files
+      when:
+        - fireeye_win_config_files.files | length > 0
+        - win_xagt_status.rc != 0
+
+    - name: Import FireEye agent configuration (enroll with HX portal)
+      ansible.windows.win_shell: |
+        Stop-Service -Name xagt -Force -ErrorAction SilentlyContinue
+        & "{{ xagt_exe_files.files[0].path }}" -i "{{ fireeye_win_config_files.files[0].path }}"
+      when:
+        - fireeye_win_config_files.files | length > 0
+        - win_xagt_status.rc != 0
+        - xagt_exe_files.files | default([]) | length > 0
+
+    - name: Ensure FireEye agent service is running
+      ansible.windows.win_shell: |
+        $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
+        if (-not $svc) {
+            Write-Host "xagt service not found — skipping"
+            exit 0
+        }
+        sc.exe config xagt start= auto
+        sc.exe start xagt 2>$null
+        Write-Host "xagt service configured and started"
+      changed_when: false
+      failed_when: false
+
+    - name: Clean up FireEye install directory
+      ansible.windows.win_file:
+        path: C:/Windows/Temp/fireeye_install
+        state: absent

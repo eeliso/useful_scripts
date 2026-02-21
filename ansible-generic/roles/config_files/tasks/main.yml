@@ -4,61 +4,16 @@
 # =============================================================================
 # Copies files from the local `files/` directory to the remote host.
 # Only files listed in the host's `config_files` variable are copied.
-#
-# Place your config files in the project root `files/` directory:
-#   files/sshd_config
-#   files/nginx.conf
-#   files/logon_banner.txt
-#   etc.
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Linux — ansible.builtin.copy
-# -----------------------------------------------------------------------------
-- name: Distribute config files to Linux hosts
+- name: Include Linux config tasks
+  ansible.builtin.include_tasks: linux.yml
   when:
     - ansible_os_family in ['Debian', 'RedHat']
     - config_files | default([]) | length > 0
-  block:
-    - name: Copy config files to Linux host
-      ansible.builtin.copy:
-        src: "files/{{ item }}"
-        dest: "{{ config_dest_dir | default('/etc/') }}{{ item }}"
-        owner: root
-        group: root
-        mode: "0644"
-        backup: true
-      loop: "{{ config_files }}"
-      register: linux_copy_result
 
-    - name: Display Linux file copy results
-      ansible.builtin.debug:
-        msg: "Copied {{ linux_copy_result.results | selectattr('changed', 'equalto', true) | list | length }} file(s)"
-      when: linux_copy_result is defined
-
-# -----------------------------------------------------------------------------
-# Windows — ansible.windows.win_copy
-# -----------------------------------------------------------------------------
-- name: Distribute config files to Windows hosts
+- name: Include Windows config tasks
+  ansible.builtin.include_tasks: windows.yml
   when:
     - ansible_os_family == 'Windows'
     - config_files | default([]) | length > 0
-  block:
-    - name: Ensure destination directory exists on Windows
-      ansible.windows.win_file:
-        path: "{{ config_dest_dir | default('C:\\ProgramData\\configs\\') }}"
-        state: directory
-
-    - name: Copy config files to Windows host
-      ansible.windows.win_copy:
-        src: "files/{{ item }}"
-        dest: "{{ config_dest_dir | default('C:\\ProgramData\\configs\\') }}{{ item }}"
-        backup: true
-      loop: "{{ config_files }}"
-      register: win_copy_result
-
-    - name: Display Windows file copy results
-      ansible.builtin.debug:
-        msg: "Copied {{ win_copy_result.results | selectattr('changed', 'equalto', true) | list | length }} file(s)"
-      when: win_copy_result is defined
-

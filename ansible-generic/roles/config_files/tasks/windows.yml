@@ -1,0 +1,22 @@
+---
+# =============================================================================
+# Config Files — Windows tasks
+# =============================================================================
+
+- name: Ensure destination directory exists on Windows
+  ansible.windows.win_file:
+    path: "{{ config_dest_dir | default('C:\\ProgramData\\configs\\') }}"
+    state: directory
+
+- name: Copy config files to Windows host
+  ansible.windows.win_copy:
+    src: "files/{{ item }}"
+    dest: "{{ config_dest_dir | default('C:\\ProgramData\\configs\\') }}{{ item }}"
+    backup: true
+  loop: "{{ config_files }}"
+  register: win_copy_result
+
+- name: Display Windows file copy results
+  ansible.builtin.debug:
+    msg: "Copied {{ win_copy_result.results | selectattr('changed', 'equalto', true) | list | length }} file(s)"
+  when: win_copy_result is defined

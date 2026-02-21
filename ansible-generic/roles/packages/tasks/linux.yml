@@ -1,0 +1,132 @@
+---
+# =============================================================================
+# Packages — Linux tasks
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Repo-based packages (yum/apt)
+# -----------------------------------------------------------------------------
+- name: Set skip_if_unavailable for third-party repos (RedHat)
+  ansible.builtin.shell:
+    cmd: |
+      # Only set skip_if_unavailable on non-CentOS/RHEL repos (third-party)
+      for repo in /etc/yum.repos.d/*.repo; do
+        basename=$(basename "$repo")
+        case "$basename" in
+          CentOS-*|redhat-*|Rocky-*|Alma-*) continue ;;
+          *) grep -q 'skip_if_unavailable' "$repo" || sed -i '/^\[/a skip_if_unavailable=1' "$repo" ;;
+        esac
+      done
+  when: ansible_os_family == 'RedHat'
+  changed_when: false
+
+- name: Update apt cache (Debian/Ubuntu)
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == 'Debian'
+
+- name: Install Linux packages from repos
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
+  register: linux_package_result
+
+- name: Display Linux package installation results
+  ansible.builtin.debug:
+    msg: "Installed {{ linux_package_result.results | selectattr('changed', 'equalto', true) | list | length }} repo package(s)"
+  when: linux_package_result.results | default([]) | length > 0
+
+# -----------------------------------------------------------------------------
+# FireEye agent from local .tgz
+# -----------------------------------------------------------------------------
+- name: Install FireEye agent on Linux
+  when:
+    - "'fireeye-agent' in (packages | default([]))"
+    - fireeye_package is defined
+  block:
+    - name: Create FireEye install directory
+      ansible.builtin.file:
+        path: /tmp/fireeye_install
+        state: directory
+        mode: "0755"
+
+    - name: Copy FireEye .tgz to remote host
+      ansible.builtin.copy:
+        src: "{{ fireeye_package }}"
+        dest: /tmp/fireeye_install/fireeye-agent.tgz
+        mode: "0644"
+
+    - name: Extract FireEye .tgz
+      ansible.builtin.shell:
+        cmd: tar xzf /tmp/fireeye_install/fireeye-agent.tgz -C /tmp/fireeye_install
+
+    - name: Find installer script or RPM in extracted files
+      ansible.builtin.find:
+        paths: /tmp/fireeye_install
+        patterns: ["*.rpm", "*.deb", "install.sh", "agent_install.sh"]
+        recurse: true
+      register: fireeye_installer_files
+
+    - name: Install FireEye RPM package (RedHat)
+      ansible.builtin.yum:
+        name: "{{ item.path }}"
+        state: present
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*\\.rpm$') | list }}"
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install FireEye DEB package (Debian)
+      ansible.builtin.apt:
+        deb: "{{ item.path }}"
+        state: present
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*\\.deb$') | list }}"
+      when: ansible_os_family == 'Debian'
+
+    - name: Run FireEye install script (if present, no RPM/DEB found)
+      ansible.builtin.shell:
+        cmd: "bash {{ item.path }}"
+        chdir: /tmp/fireeye_install
+      loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*install.*\\.sh$') | list }}"
+      when: fireeye_installer_files.files | selectattr('path', 'match', '.*\\.(rpm|deb)$') | list | length == 0
+
+    - name: Find agent_config.json in extracted files
+      ansible.builtin.find:
+        paths: /tmp/fireeye_install
+        patterns: ["agent_config.json"]
+        recurse: true
+      register: fireeye_config_files
+
+    - name: Check if FireEye agent is already running
+      ansible.builtin.command:
+        cmd: systemctl is-active xagt
+      register: xagt_status
+      changed_when: false
+      failed_when: false
+
+    - name: Import FireEye agent configuration (enroll with HX portal)
+      when:
+        - fireeye_config_files.files | length > 0
+        - xagt_status.rc != 0
+      block:
+        - name: Stop FireEye agent before config import
+          ansible.builtin.service:
+            name: xagt
+            state: stopped
+          failed_when: false
+
+        - name: Run config import
+          ansible.builtin.shell:
+            cmd: /opt/fireeye/bin/xagt -i {{ item.path }}
+          loop: "{{ fireeye_config_files.files }}"
+
+    - name: Start and enable FireEye agent service
+      ansible.builtin.service:
+        name: xagt
+        state: started
+        enabled: true
+
+    - name: Clean up FireEye install directory
+      ansible.builtin.file:
+        path: /tmp/fireeye_install
+        state: absent

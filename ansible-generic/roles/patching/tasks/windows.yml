@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# Patching — Windows tasks
+# =============================================================================
+
+- name: Install Windows updates
+  ansible.windows.win_updates:
+    category_names: "{{ patching_update_categories | default(['SecurityUpdates', 'CriticalUpdates']) }}"
+    state: installed
+    reboot: "{{ patching_auto_reboot | default(true) }}"
+    reboot_timeout: "{{ patching_reboot_timeout | default(1200) }}"
+  register: win_update_result
+
+- name: Display Windows update results
+  ansible.builtin.debug:
+    msg: >-
+      Installed {{ win_update_result.installed_update_count | default(0) }} update(s).
+      Found {{ win_update_result.found_update_count | default(0) }} available update(s).
+  when: win_update_result is defined
