@@ -17,13 +17,11 @@
     - patch | default(true)
     - ansible_os_family == 'Debian'
   block:
-    - name: Update apt cache
+    - name: Upgrade security packages only (Debian/Ubuntu)
       ansible.builtin.apt:
+        upgrade: safe
         update_cache: true
-
-    - name: Upgrade all packages (Debian/Ubuntu)
-      ansible.builtin.apt:
-        upgrade: dist
+        default_release: "{{ ansible_distribution_release }}-security"
         autoremove: true
         autoclean: true
       register: apt_upgrade_result
@@ -55,11 +53,14 @@
     - patch | default(true)
     - ansible_os_family == 'RedHat'
   block:
-    - name: Upgrade all packages (RHEL/CentOS)
+    - name: Upgrade security packages only (RHEL/CentOS)
       ansible.builtin.yum:
         name: "*"
         state: latest
+        security: true
         update_cache: true
+        exclude:
+          - "*.i686"
       register: yum_upgrade_result
 
     - name: Display yum upgrade results
