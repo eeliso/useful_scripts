@@ -6,14 +6,6 @@
 # Only files listed in the host's `config_files` variable are copied.
 # =============================================================================
 
-- name: Include Linux config tasks
-  ansible.builtin.include_tasks: linux.yml
-  when:
-    - ansible_os_family in ['Debian', 'RedHat']
-    - config_files | default([]) | length > 0
-
-- name: Include Windows config tasks
-  ansible.builtin.include_tasks: windows.yml
-  when:
-    - ansible_os_family == 'Windows'
-    - config_files | default([]) | length > 0
+- name: Run OS-specific config tasks
+  ansible.builtin.include_tasks: "{{ 'windows' if ansible_os_family == 'Windows' else 'linux' }}.yml"
+  when: config_files | default([]) | length > 0

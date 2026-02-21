@@ -3,19 +3,6 @@
 # Role: patching — Apply security updates on Linux and Windows hosts
 # =============================================================================
 
-- name: Check if patching is enabled
-  ansible.builtin.debug:
-    msg: "Patching is disabled for this host, skipping."
-  when: not (patch | default(true))
-
-- name: Include Linux patching tasks
-  ansible.builtin.include_tasks: linux.yml
-  when:
-    - patch | default(true)
-    - ansible_os_family in ['Debian', 'RedHat']
-
-- name: Include Windows patching tasks
-  ansible.builtin.include_tasks: windows.yml
-  when:
-    - patch | default(true)
-    - ansible_os_family == 'Windows'
+- name: Run OS-specific patching tasks
+  ansible.builtin.include_tasks: "{{ 'windows' if ansible_os_family == 'Windows' else 'linux' }}.yml"
+  when: patch | default(true)

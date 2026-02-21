@@ -7,10 +7,5 @@
 #   2. FireEye agent — installed from a local .tgz/.zip on the Ansible control node
 # =============================================================================
 
-- name: Include Linux package tasks
-  ansible.builtin.include_tasks: linux.yml
-  when: ansible_os_family in ['Debian', 'RedHat']
-
-- name: Include Windows package tasks
-  ansible.builtin.include_tasks: windows.yml
-  when: ansible_os_family == 'Windows'
+- name: Run OS-specific package tasks
+  ansible.builtin.include_tasks: "{{ 'windows' if ansible_os_family == 'Windows' else 'linux' }}.yml"
