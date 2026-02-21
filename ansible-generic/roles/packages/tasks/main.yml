@@ -123,16 +123,21 @@
       changed_when: "'already installed' not in choco_install.stdout"
 
     - name: Install Windows packages via Chocolatey
-      chocolatey.chocolatey.win_chocolatey:
-        name: "{{ item }}"
-        state: present
+      ansible.windows.win_shell: |
+        # Force TLS 1.2 for any package downloads
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        choco install {{ item }} -y --no-progress
       loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
       register: win_package_result
+      changed_when: "'installed 0/' not in win_package_result.stdout | default('') | lower"
+      failed_when:
+        - win_package_result.rc != 0
+        - "'already installed' not in win_package_result.stdout | default('') | lower"
 
     - name: Display Windows package installation results
       ansible.builtin.debug:
-        msg: "Installed {{ win_package_result.results | selectattr('changed', 'equalto', true) | list | length }} repo package(s)"
-      when: win_package_result.results | default([]) | length > 0
+        msg: "Processed {{ packages | default([]) | reject('equalto', 'fireeye-agent') | list | length }} package(s)"
+      when: packages | default([]) | length > 0
 
 # -----------------------------------------------------------------------------
 # Windows — FireEye agent from local .tgz
