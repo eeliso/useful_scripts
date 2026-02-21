@@ -20,7 +20,3 @@ fireeye_package: /home/kali/dev/useful_scripts/ansible-generic/files/IMAGE_HX_AG
 patching_auto_reboot: true
 patching_reboot_timeout: 600
 
-# --- Filebeat ---
-filebeat_config_path: /etc/filebeat/filebeat.yml
-filebeat_elasticsearch_hosts:
-  - "https://siem.ldil.vle.fi:9200"

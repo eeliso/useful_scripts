@@ -72,12 +72,12 @@ all:
           config_files: []
           patch: true
 
-        #www.ldil.vle.fi:
-        #  packages:
-        #    - fireeye-agent
-        #    - filebeat
-        #  config_files: []
-        #  patch: false
+        www.ldil.vle.fi:
+          packages:
+            - fireeye-agent
+            - filebeat
+          config_files: []
+          patch: false
 
         mail.ldil.vle.fi:
           packages:
@@ -114,20 +114,20 @@ all:
           config_files: []
           patch: true
 
-        #proxy.ldil.vle.fi:
-        #  packages:
-        #    - fireeye-agent
-        #    - filebeat
-        #  config_files: []
-        #  patch: true
+        proxy.ldil.vle.fi:
+          packages:
+            - fireeye-agent
+            - filebeat
+          config_files: []
+          patch: true
 
-        #dev-ws2.ldil.vle.fi:
-        #  ansible_user: user
-        #  packages:
-        #    - fireeye-agent
-        #    - filebeat
-        #  config_files: []
-        #  patch: true
+        dev-ws2.ldil.vle.fi:
+          ansible_user: user
+          packages:
+            - fireeye-agent
+            - filebeat
+          config_files: []
+          patch: true
 
         gitlab.ldil.vle.fi:
           packages:
@@ -150,7 +150,6 @@ all:
           ansible_winrm_scheme: http
           packages:
             - fireeye-agent
-            - filebeat
           config_files: []
           patch: true
 
@@ -166,7 +165,6 @@ all:
           ansible_winrm_scheme: http
           packages:
             - fireeye-agent
-            - filebeat
           config_files: []
           patch: false
 
@@ -176,7 +174,6 @@ all:
           ansible_user: user
           packages:
             - fireeye-agent
-            - filebeat
           config_files: []
           patch: true
 
@@ -185,6 +182,5 @@ all:
           ansible_winrm_scheme: http
           packages:
             - fireeye-agent
-            - filebeat
           config_files: []
           patch: false
