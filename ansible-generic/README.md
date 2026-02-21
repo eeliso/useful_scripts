@@ -11,9 +11,10 @@ Centralized, repeatable management of a mixed Linux/Windows server environment. 
 
 ## Playbooks
 
+Run these playbooks individually as needed:
+
 | Playbook | Purpose | Reboots? |
 |---|---|---|
-| `site.yml` | Run everything (packages → config → patching) | ⚠️ Yes |
 | `packages.yml` | Install packages and FireEye/Trellix agent | No |
 | `config.yml` | Distribute configuration files | No |
 | `patch.yml` | Security-only OS patching with auto-reboot | ⚠️ Yes |
@@ -23,19 +24,14 @@ Centralized, repeatable management of a mixed Linux/Windows server environment. 
 
 ```bash
 # Preview changes first (always recommended)
-ansible-playbook site.yml --check --diff
+ansible-playbook patch.yml --check --diff
 
-# Full run
-ansible-playbook site.yml
-
-# Individual playbooks
-ansible-playbook packages.yml
-ansible-playbook config.yml
+# Apply security patches
 ansible-playbook patch.yml
 
-# Target specific hosts
-ansible-playbook site.yml --limit "linux"
-ansible-playbook site.yml --limit "siem.ldil.vle.fi"
+# Individual targeted runs
+ansible-playbook packages.yml --limit "windows"
+ansible-playbook config.yml --limit "siem.ldil.vle.fi"
 ```
 
 ## Adding a Server
@@ -65,7 +61,6 @@ linux:
 
 ```
 ├── inventory.yml              # All servers and their settings
-├── site.yml                   # Master playbook
 ├── packages.yml / config.yml / patch.yml / init.yml
 ├── group_vars/
 │   ├── linux.yml              # Linux connection & patching defaults

@@ -105,11 +105,11 @@
   register: win_xagt_status
   changed_when: false
   failed_when: false
-  when: "'fireeye-agent' in (packages | default([]))"
+  when: packages | default([]) | intersect(['fireeye-agent']) | length > 0
 
 - name: Install FireEye agent on Windows
   when:
-    - "'fireeye-agent' in (packages | default([]))"
+    - packages | default([]) | intersect(['fireeye-agent']) | length > 0
     - fireeye_package is defined
     - win_xagt_status.rc | default(1) != 0
   block:
