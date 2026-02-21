@@ -8,4 +8,5 @@
 # =============================================================================
 
 - name: Run OS-specific package tasks
-  ansible.builtin.include_tasks: "{{ 'windows' if ansible_os_family == 'Windows' else 'linux' }}.yml"
+  ansible.builtin.include_tasks:
+    file: "{{ (ansible_os_family == 'Windows') | ternary('windows.yml', 'linux.yml') }}"
