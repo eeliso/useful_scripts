@@ -154,14 +154,12 @@ all:
           config_files: []
           patch: true
 
-        dc.ldil.vle.fi:
-          ansible_port: 5985
-          ansible_winrm_scheme: http
-          packages:
-            - fireeye-agent
-            - filebeat
-          config_files: []
-          patch: true
+        #dc.ldil.vle.fi:
+        #  packages:
+        #    - fireeye-agent
+        #    - filebeat
+        #  config_files: []
+        #  patch: true
 
         files.ldil.vle.fi:
           ansible_port: 5985
