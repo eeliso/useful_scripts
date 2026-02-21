@@ -13,14 +13,17 @@
 - name: Install repo-based packages on Linux
   when: ansible_os_family in ['Debian', 'RedHat']
   block:
-    - name: Set skip_if_unavailable for all yum/dnf repos (RedHat)
+    - name: Set skip_if_unavailable for third-party repos (RedHat)
       ansible.builtin.shell:
         cmd: |
-          if command -v dnf >/dev/null 2>&1; then
-            dnf config-manager --save --setopt=\*.skip_if_unavailable=1
-          elif command -v yum >/dev/null 2>&1; then
-            yum-config-manager --save --setopt=\*.skip_if_unavailable=1 2>/dev/null || sed -i '/^\[/a skip_if_unavailable=1' /etc/yum.repos.d/*.repo
-          fi
+          # Only set skip_if_unavailable on non-CentOS/RHEL repos (third-party)
+          for repo in /etc/yum.repos.d/*.repo; do
+            basename=$(basename "$repo")
+            case "$basename" in
+              CentOS-*|redhat-*|Rocky-*|Alma-*) continue ;;
+              *) grep -q 'skip_if_unavailable' "$repo" || sed -i '/^\[/a skip_if_unavailable=1' "$repo" ;;
+            esac
+          done
       when: ansible_os_family == 'RedHat'
       changed_when: false
 
@@ -78,7 +81,6 @@
       ansible.builtin.yum:
         name: "{{ item.path }}"
         state: present
-        disable_gpg_check: true
       loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*\\.rpm$') | list }}"
       when: ansible_os_family == 'RedHat'
 
@@ -192,9 +194,34 @@
 
     - name: Install Windows packages via Chocolatey
       ansible.windows.win_shell: |
-        # Force TLS 1.2 for any package downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        choco install {{ item }} -y --no-progress
+
+        # Try normal choco install first
+        $output = & choco install {{ item }} -y --no-progress 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host $output
+            exit 0
+        }
+
+        # If SSL failure, download .nupkg via PowerShell and install from local
+        if ($output -match "certificate|SSL|trust") {
+            Write-Host "SSL issue detected, downloading package manually..."
+            [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+            try {
+                $nupkgPath = "C:\Windows\Temp\{{ item }}.nupkg"
+                (New-Object System.Net.WebClient).DownloadFile(
+                    "https://community.chocolatey.org/api/v2/package/{{ item }}",
+                    $nupkgPath
+                )
+                choco install {{ item }} -y --no-progress --source="C:\Windows\Temp"
+            } finally {
+                [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $null
+                Remove-Item "C:\Windows\Temp\{{ item }}.nupkg" -Force -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-Host $output
+            exit 1
+        }
       loop: "{{ packages | default([]) | reject('equalto', 'fireeye-agent') | list }}"
       register: win_package_result
       changed_when: "'installed 0/' not in win_package_result.stdout | default('') | lower"
@@ -251,11 +278,36 @@
         recurse: true
       register: fireeye_win_config_files
 
+    - name: Check if FireEye agent service is already running
+      ansible.windows.win_shell: |
+        $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -eq 'Running') { exit 0 } else { exit 1 }
+      register: win_xagt_status
+      changed_when: false
+      failed_when: false
+
+    - name: Find xagt.exe on the system
+      ansible.windows.win_find:
+        paths:
+          - C:/Program Files/FireEye
+          - C:/Program Files (x86)/FireEye
+          - C:/Program Files/Trellix
+          - C:/Program Files (x86)/Trellix
+        patterns: ["xagt.exe"]
+        recurse: true
+      register: xagt_exe_files
+      when:
+        - fireeye_win_config_files.files | length > 0
+        - win_xagt_status.rc != 0
+
     - name: Import FireEye agent configuration (enroll with HX portal)
       ansible.windows.win_shell: |
-        & "C:/Program Files/FireEye/xagt/xagt.exe" -i "{{ item.path }}"
-      loop: "{{ fireeye_win_config_files.files }}"
-      when: fireeye_win_config_files.files | length > 0
+        Stop-Service -Name xagt -Force -ErrorAction SilentlyContinue
+        & "{{ xagt_exe_files.files[0].path }}" -i "{{ fireeye_win_config_files.files[0].path }}"
+      when:
+        - fireeye_win_config_files.files | length > 0
+        - win_xagt_status.rc != 0
+        - xagt_exe_files.files | default([]) | length > 0
 
     - name: Ensure FireEye agent service is running
       ansible.windows.win_service:
