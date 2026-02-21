@@ -85,6 +85,25 @@
       loop: "{{ fireeye_installer_files.files | selectattr('path', 'match', '.*install.*\\.sh$') | list }}"
       when: fireeye_installer_files.files | selectattr('path', 'match', '.*\\.(rpm|deb)$') | list | length == 0
 
+    - name: Find agent_config.json in extracted files
+      ansible.builtin.find:
+        paths: /tmp/fireeye_install
+        patterns: ["agent_config.json"]
+        recurse: true
+      register: fireeye_config_files
+
+    - name: Import FireEye agent configuration (enroll with HX portal)
+      ansible.builtin.shell:
+        cmd: /opt/fireeye/bin/xagt -i {{ item.path }}
+      loop: "{{ fireeye_config_files.files }}"
+      when: fireeye_config_files.files | length > 0
+
+    - name: Start and enable FireEye agent service
+      ansible.builtin.service:
+        name: xagt
+        state: started
+        enabled: true
+
     - name: Clean up FireEye install directory
       ansible.builtin.file:
         path: /tmp/fireeye_install
@@ -175,6 +194,25 @@
         path: "{{ item.path }}"
         state: present
       loop: "{{ fireeye_msi_files.files }}"
+
+    - name: Find agent_config.json in extracted files
+      ansible.windows.win_find:
+        paths: C:/Windows/Temp/fireeye_install
+        patterns: ["agent_config.json"]
+        recurse: true
+      register: fireeye_win_config_files
+
+    - name: Import FireEye agent configuration (enroll with HX portal)
+      ansible.windows.win_shell: |
+        & "C:/Program Files/FireEye/xagt/xagt.exe" -i "{{ item.path }}"
+      loop: "{{ fireeye_win_config_files.files }}"
+      when: fireeye_win_config_files.files | length > 0
+
+    - name: Ensure FireEye agent service is running
+      ansible.windows.win_service:
+        name: xagt
+        start_mode: auto
+        state: started
 
     - name: Clean up FireEye install directory
       ansible.windows.win_file:
