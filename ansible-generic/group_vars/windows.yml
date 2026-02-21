@@ -27,3 +27,8 @@ patching_update_categories:
 # Reboot the server automatically after patching if required
 patching_auto_reboot: true
 patching_reboot_timeout: 1200
+
+# --- Filebeat ---
+filebeat_config_path: "C:/Program Files/Filebeat/filebeat.yml"
+filebeat_elasticsearch_hosts:
+  - "http://siem.ldil.vle.fi:9200"

@@ -61,3 +61,62 @@
       ansible.builtin.debug:
         msg: "Copied {{ win_copy_result.results | selectattr('changed', 'equalto', true) | list | length }} file(s)"
       when: win_copy_result is defined
+
+# -----------------------------------------------------------------------------
+# Filebeat configuration — Linux
+# -----------------------------------------------------------------------------
+- name: Deploy filebeat configuration on Linux
+  when:
+    - ansible_os_family in ['Debian', 'RedHat']
+    - "'filebeat' in (packages | default([]))"
+    - filebeat_elasticsearch_hosts is defined
+  block:
+    - name: Template filebeat.yml to Linux host
+      ansible.builtin.template:
+        src: filebeat.yml.j2
+        dest: "{{ filebeat_config_path | default('/etc/filebeat/filebeat.yml') }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      register: linux_filebeat_config
+
+    - name: Restart filebeat service on Linux
+      ansible.builtin.service:
+        name: filebeat
+        state: restarted
+        enabled: true
+      when: linux_filebeat_config.changed
+
+# -----------------------------------------------------------------------------
+# Filebeat configuration — Windows
+# -----------------------------------------------------------------------------
+- name: Deploy filebeat configuration on Windows
+  when:
+    - ansible_os_family == 'Windows'
+    - "'filebeat' in (packages | default([]))"
+    - filebeat_elasticsearch_hosts is defined
+  block:
+    - name: Ensure filebeat config directory exists on Windows
+      ansible.windows.win_file:
+        path: C:/Program Files/Filebeat
+        state: directory
+
+    - name: Template filebeat.yml to Windows host
+      ansible.windows.win_template:
+        src: filebeat.yml.j2
+        dest: "{{ filebeat_config_path | default('C:/ProgramData/Elastic/Beats/filebeat/filebeat.yml') }}"
+        backup: true
+      register: win_filebeat_config
+
+    - name: Restart filebeat service on Windows
+      ansible.windows.win_shell: |
+        $svc = Get-Service -Name filebeat -ErrorAction SilentlyContinue
+        if ($svc) {
+            Restart-Service -Name filebeat -Force
+            Set-Service -Name filebeat -StartupType Automatic
+            Write-Host "Filebeat service restarted"
+        } else {
+            Write-Host "Filebeat service not found"
+        }
+      when: win_filebeat_config.changed
