@@ -1,0 +1,44 @@
+---
+# =============================================================================
+# Patching Playbook — OS patching & reboots only
+# =============================================================================
+# Usage:
+#   ansible-playbook patch.yml                             # all hosts
+#   ansible-playbook patch.yml --limit "linux"             # linux only
+#   ansible-playbook patch.yml --limit "windows"           # windows only
+#   ansible-playbook patch.yml --limit "siem.ldil.vle.fi"  # single host
+#   ansible-playbook patch.yml --check --diff              # dry-run
+#
+# WARNING: This playbook may reboot servers if patching_auto_reboot is true.
+#          Always do a dry-run first during maintenance windows.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux Hosts
+# -----------------------------------------------------------------------------
+- name: Patch Linux Servers
+  hosts: linux
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter SSH password for Linux hosts"
+      private: true
+
+  roles:
+    - role: patching
+
+# -----------------------------------------------------------------------------
+# Windows Hosts
+# -----------------------------------------------------------------------------
+- name: Patch Windows Servers
+  hosts: windows
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter WinRM password for Windows hosts"
+      private: true
+
+  roles:
+    - role: patching

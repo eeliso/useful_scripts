@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# Config Files Playbook — Distribute configuration files only
+# =============================================================================
+# Usage:
+#   ansible-playbook config.yml                            # all hosts
+#   ansible-playbook config.yml --limit "linux"            # linux only
+#   ansible-playbook config.yml --limit "windows"          # windows only
+#   ansible-playbook config.yml --limit "siem.ldil.vle.fi" # single host
+#   ansible-playbook config.yml --check --diff             # dry-run
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux Hosts
+# -----------------------------------------------------------------------------
+- name: Distribute config files to Linux Servers
+  hosts: linux
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter SSH password for Linux hosts"
+      private: true
+
+  roles:
+    - role: config_files
+
+# -----------------------------------------------------------------------------
+# Windows Hosts
+# -----------------------------------------------------------------------------
+- name: Distribute config files to Windows Servers
+  hosts: windows
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter WinRM password for Windows hosts"
+      private: true
+
+  roles:
+    - role: config_files

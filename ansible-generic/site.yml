@@ -1,58 +1,21 @@
 ---
 # =============================================================================
-# Master Playbook — Configuration Management & OS Patching
+# Master Playbook — Run everything (packages + patching + config files)
 # =============================================================================
-# Usage:
-#   ansible-playbook site.yml                                  # all hosts (prompts for passwords)
-#   ansible-playbook site.yml --limit "linux"                  # linux only
-#   ansible-playbook site.yml --limit "windows"                # windows only
-#   ansible-playbook site.yml --limit "web01.corp.com"         # single host
-#   ansible-playbook site.yml --tags packages                  # packages only
-#   ansible-playbook site.yml --tags patching                  # patching only
-#   ansible-playbook site.yml --tags config_files              # config only
-#   ansible-playbook site.yml --check --diff                   # dry-run
+# This is an orchestrator that imports all individual playbooks.
+# For targeted runs, use the individual playbooks directly:
 #
-# Alternatively, use --ask-pass instead of the built-in prompts:
-#   ansible-playbook site.yml --ask-pass                       # single password for all
-#   ansible-playbook site.yml --ask-pass --ask-become-pass     # + sudo password
+#   ansible-playbook packages.yml                  # packages only
+#   ansible-playbook patch.yml                     # OS patching only
+#   ansible-playbook config.yml                    # config files only
+#   ansible-playbook site.yml                      # everything
+#
+# All playbooks support:
+#   --limit "linux"                                # target one group
+#   --limit "siem.ldil.vle.fi"                     # target one host
+#   --check --diff                                 # dry-run
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Linux Hosts
-# -----------------------------------------------------------------------------
-- name: Configure Linux Servers
-  hosts: linux
-  gather_facts: true
-
-  vars_prompt:
-    - name: ansible_password
-      prompt: "Enter SSH password for Linux hosts"
-      private: true
-
-  roles:
-    - role: packages
-      tags: [packages]
-    - role: patching
-      tags: [patching]
-    - role: config_files
-      tags: [config_files]
-
-# -----------------------------------------------------------------------------
-# Windows Hosts
-# -----------------------------------------------------------------------------
-- name: Configure Windows Servers
-  hosts: windows
-  gather_facts: true
-
-  vars_prompt:
-    - name: ansible_password
-      prompt: "Enter WinRM password for Windows hosts"
-      private: true
-
-  roles:
-    - role: packages
-      tags: [packages]
-    - role: patching
-      tags: [patching]
-    - role: config_files
-      tags: [config_files]
+- import_playbook: packages.yml
+- import_playbook: config.yml
+- import_playbook: patch.yml

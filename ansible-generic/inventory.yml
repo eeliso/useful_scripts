@@ -146,6 +146,8 @@ all:
     windows:
       hosts:
         monitor.ldil.vle.fi:
+          ansible_port: 5985
+          ansible_winrm_scheme: http
           packages:
             - fireeye-agent
             - filebeat
@@ -153,6 +155,8 @@ all:
           patch: true
 
         dc.ldil.vle.fi:
+          ansible_port: 5985
+          ansible_winrm_scheme: http
           packages:
             - fireeye-agent
             - filebeat
@@ -160,6 +164,8 @@ all:
           patch: true
 
         files.ldil.vle.fi:
+          ansible_port: 5985
+          ansible_winrm_scheme: http
           packages:
             - fireeye-agent
             - filebeat
@@ -167,6 +173,8 @@ all:
           patch: false
 
         dev-ws1.ldil.vle.fi:
+          ansible_port: 5985
+          ansible_winrm_scheme: http
           ansible_user: user
           packages:
             - fireeye-agent
@@ -175,6 +183,8 @@ all:
           patch: true
 
         legacy-app.ldil.vle.fi:
+          ansible_port: 5985
+          ansible_winrm_scheme: http
           packages:
             - fireeye-agent
             - filebeat

@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# Packages Playbook — Install & manage packages only
+# =============================================================================
+# Usage:
+#   ansible-playbook packages.yml                          # all hosts
+#   ansible-playbook packages.yml --limit "linux"          # linux only
+#   ansible-playbook packages.yml --limit "windows"        # windows only
+#   ansible-playbook packages.yml --limit "siem.ldil.vle.fi"  # single host
+#   ansible-playbook packages.yml --check --diff           # dry-run
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Linux Hosts
+# -----------------------------------------------------------------------------
+- name: Install packages on Linux Servers
+  hosts: linux
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter SSH password for Linux hosts"
+      private: true
+
+  roles:
+    - role: packages
+
+# -----------------------------------------------------------------------------
+# Windows Hosts
+# -----------------------------------------------------------------------------
+- name: Install packages on Windows Servers
+  hosts: windows
+  gather_facts: true
+
+  vars_prompt:
+    - name: ansible_password
+      prompt: "Enter WinRM password for Windows hosts"
+      private: true
+
+  roles:
+    - role: packages

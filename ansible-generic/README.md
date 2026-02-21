@@ -4,18 +4,20 @@ Ansible-based configuration management for mixed Linux/Windows server environmen
 
 ## Prerequisites
 
-- **Ansible 2.14+** with the following collections:
+- **ansible-core 2.16** installed via pipx:
   ```bash
-  ansible-galaxy collection install ansible.windows chocolatey.chocolatey
+  pipx install ansible-core==2.16.14
+  pipx inject ansible-core pywinrm
+  ansible-galaxy collection install ansible.windows chocolatey.chocolatey community.windows
   ```
-- **Linux targets**: SSH access with sudo privileges
+- **Linux targets**: SSH access as root
 - **Windows targets**: WinRM enabled over HTTPS (port 5986)
 
 ## Quick Start
 
-1. **Edit the inventory** —  Set packages, config files, and patching preferences per host.
+1. **Edit the inventory** — Set packages, config files, and patching preferences per host.
 
-2. **Credentials** — The playbook will prompt you for passwords at runtime. No passwords are stored in files. You can configure usernames in `group_vars/linux.yml` and `group_vars/windows.yml`.
+2. **Credentials** — All playbooks prompt for passwords at runtime. No passwords are stored in files. Configure usernames in `group_vars/linux.yml` and `group_vars/windows.yml`.
 
 3. **Place config files** — Drop any configuration files into the `files/` directory.
 
@@ -34,65 +36,69 @@ Ansible-based configuration management for mixed Linux/Windows server environmen
    ansible-playbook site.yml
    ```
 
-## Authentication
+## Playbooks
 
-When you run the playbook, you will be prompted for passwords interactively:
-
-```
-Enter SSH password for Linux hosts:
-Enter sudo password for Linux hosts (press Enter if same as SSH):
-Enter WinRM password for Windows hosts:
-```
-
-If you limit the run to one group, only the relevant prompts appear. Alternatively, you can use CLI flags instead of the built-in prompts:
-
-```bash
-# Single password for all hosts
-ansible-playbook site.yml --ask-pass
-
-# SSH + sudo password
-ansible-playbook site.yml --ask-pass --ask-become-pass
-```
+| Playbook | Purpose | Reboots? |
+|---|---|---|
+| `site.yml` | Run everything (packages → config → patching) | ⚠️ Yes |
+| `packages.yml` | Install/manage packages and FireEye agent | No |
+| `config.yml` | Distribute configuration files | No |
+| `patch.yml` | OS patching with optional auto-reboot | ⚠️ Yes |
+| `init.yml` | Bootstrap Python on new Linux hosts (run once) | No |
 
 ## Common Commands
 
 ```bash
-# Run against all hosts (prompts for passwords)
+# --- Full run (packages + config + patching) ---
 ansible-playbook site.yml
 
-# Run against Linux or Windows only
-ansible-playbook site.yml --limit "linux"
-ansible-playbook site.yml --limit "windows"
+# --- Packages only (safe, no reboots) ---
+ansible-playbook packages.yml                          # all hosts
+ansible-playbook packages.yml --limit "linux"          # linux only
+ansible-playbook packages.yml --limit "siem.ldil.vle.fi"  # single host
 
-# Run against a single host
-ansible-playbook site.yml --limit "web01.corp.com"
+# --- Config files only ---
+ansible-playbook config.yml
+ansible-playbook config.yml --limit "windows"
 
-# Run only specific roles
-ansible-playbook site.yml --tags packages
-ansible-playbook site.yml --tags patching
-ansible-playbook site.yml --tags config_files
+# --- OS patching (may reboot!) ---
+ansible-playbook patch.yml                             # all hosts
+ansible-playbook patch.yml --limit "linux"             # linux only
+ansible-playbook patch.yml --check --diff              # dry-run first!
 
-# Combine: patch only Linux
-ansible-playbook site.yml --limit "linux" --tags patching
-
-# Dry run (no changes made)
+# --- Dry run (no changes made) ---
 ansible-playbook site.yml --check --diff
 ```
+
+## Authentication
+
+All playbooks prompt for passwords interactively:
+
+```
+Enter SSH password for Linux hosts:
+Enter WinRM password for Windows hosts:
+```
+
+If you limit the run to one group, only the relevant prompt appears.
 
 ## File Structure
 
 ```
 ├── ansible.cfg              # Ansible settings
 ├── inventory.yml            # Server definitions
-├── site.yml                 # Master playbook
+├── site.yml                 # Master playbook (imports all below)
+├── packages.yml             # Package installation playbook
+├── patch.yml                # OS patching playbook
+├── config.yml               # Config file distribution playbook
+├── init.yml                 # Python bootstrap (run once)
 ├── group_vars/
 │   ├── linux.yml            # Linux connection & defaults
 │   └── windows.yml          # Windows connection & defaults
-├── files/                   # Config files to distribute
+├── files/                   # Config files & installers
 └── roles/
-    ├── packages/tasks/main.yml     # Package installation
-    ├── patching/tasks/main.yml     # OS patching + reboot
-    └── config_files/tasks/main.yml # Config file distribution
+    ├── packages/tasks/main.yml     # Package installation logic
+    ├── patching/tasks/main.yml     # OS patching + reboot logic
+    └── config_files/tasks/main.yml # Config file distribution logic
 ```
 
 ## Adding a Server
@@ -129,15 +135,13 @@ Set in `group_vars/linux.yml` or `group_vars/windows.yml`:
 | `patching_auto_reboot` | `true` | Reboot after patching if required |
 | `patching_reboot_timeout` | `600`/`1200` | Seconds to wait for reboot |
 | `config_dest_dir` | `/etc/` or `C:\ProgramData\configs\` | Where config files are placed |
-| `fireeye_package` | *(must set)* | Path to FireEye `.tgz` installer on the Ansible control node |
+| `fireeye_package` | *(must set)* | Path to FireEye installer on the Ansible control node |
 
 ## Security Packages
 
-The inventory is pre-configured with these security-focused packages:
-
 | Package | Linux | Windows | Install Method | Purpose |
 |---|---|---|---|---|
-| `fireeye-agent` | ✅ | ✅ | Local `.tgz` | FireEye/Trellix EDR agent |
+| `fireeye-agent` | ✅ | ✅ | Local `.tgz`/`.zip` | FireEye/Trellix EDR agent |
 | `filebeat` | ✅ | ✅ | Repo/Chocolatey | Log shipping to Elastic |
 
-> **Note:** `fireeye-agent` is installed from a local `.tgz` archive. Set the `fireeye_package` variable in `group_vars/linux.yml` and `group_vars/windows.yml` to the path on your Ansible control node.
+> **Note:** `fireeye-agent` is installed from a local archive. Set the `fireeye_package` variable in `group_vars/linux.yml` and `group_vars/windows.yml` to the path on your Ansible control node.
