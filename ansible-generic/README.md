@@ -11,7 +11,7 @@ Ansible-based configuration management for mixed Linux/Windows server environmen
   ansible-galaxy collection install ansible.windows chocolatey.chocolatey community.windows
   ```
 - **Linux targets**: SSH access as root
-- **Windows targets**: WinRM enabled over HTTPS (port 5986)
+- **Windows targets**: WinRM enabled (see [WinRM Setup](#winrm-setup) below)
 
 ## Quick Start
 
@@ -145,3 +145,44 @@ Set in `group_vars/linux.yml` or `group_vars/windows.yml`:
 | `filebeat` | ✅ | ✅ | Repo/Chocolatey | Log shipping to Elastic |
 
 > **Note:** `fireeye-agent` is installed from a local archive. Set the `fireeye_package` variable in `group_vars/linux.yml` and `group_vars/windows.yml` to the path on your Ansible control node.
+
+## WinRM Setup
+
+WinRM must be enabled on all Windows targets. Run these commands in an **elevated PowerShell** (Run as Administrator) on each Windows server:
+
+```powershell
+# Enable WinRM
+winrm quickconfig -force
+
+# Allow unencrypted connections (required for HTTP/port 5985)
+winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+
+# Enable basic auth
+winrm set winrm/config/service/auth '@{Basic="true"}'
+
+# Open firewall for WinRM HTTP
+netsh advfirewall firewall add rule name="WinRM HTTP" dir=in action=allow protocol=TCP localport=5985
+
+# Verify listeners
+winrm enumerate winrm/config/listener
+```
+
+### Using HTTP instead of HTTPS
+
+If a server has TLS/SSL issues (e.g., old certificates, unsupported protocol errors), switch it to HTTP by adding per-host overrides in `inventory.yml`:
+
+```yaml
+windows:
+  hosts:
+    server.example.com:
+      ansible_port: 5985
+      ansible_winrm_scheme: http
+```
+
+### Verify connectivity
+
+From the Ansible control node:
+
+```bash
+ansible server.example.com -m win_ping --ask-pass
+```

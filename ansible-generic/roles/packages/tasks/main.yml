@@ -96,10 +96,31 @@
 - name: Install repo-based packages on Windows
   when: ansible_os_family == 'Windows'
   block:
-    - name: Ensure Chocolatey is installed
-      chocolatey.chocolatey.win_chocolatey:
-        name: chocolatey
-        state: present
+    - name: Ensure TLS 1.2 and install Chocolatey
+      ansible.windows.win_shell: |
+        # Force TLS 1.2 for downloads
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+        # Check if Chocolatey is already installed
+        if (Get-Command choco -ErrorAction SilentlyContinue) {
+            Write-Host "Chocolatey is already installed"
+            exit 0
+        }
+
+        # Check .NET Framework version to decide Chocolatey version
+        $netRelease = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -ErrorAction SilentlyContinue).Release
+        if ($netRelease -ge 528040) {
+            # .NET 4.8+ present — install latest Chocolatey
+            $installScript = (New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')
+            Invoke-Expression $installScript
+        } else {
+            # .NET < 4.8 — install Chocolatey 1.x
+            $env:chocolateyVersion = '1.4.0'
+            $installScript = (New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')
+            Invoke-Expression $installScript
+        }
+      register: choco_install
+      changed_when: "'already installed' not in choco_install.stdout"
 
     - name: Install Windows packages via Chocolatey
       chocolatey.chocolatey.win_chocolatey:
