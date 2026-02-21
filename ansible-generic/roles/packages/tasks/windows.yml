@@ -105,6 +105,7 @@
   register: win_xagt_status
   changed_when: false
   failed_when: false
+  check_mode: false
   when: packages | default([]) | intersect(['fireeye-agent']) | length > 0
 
 - name: Install FireEye agent on Windows

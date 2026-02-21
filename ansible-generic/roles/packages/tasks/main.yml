@@ -7,11 +7,6 @@
 #   2. FireEye agent — installed from a local .tgz/.zip on the Ansible control node
 # =============================================================================
 
-- name: Debug packages variable
-  ansible.builtin.debug:
-    var: packages
-    verbosity: 0
-
 - name: Run OS-specific package tasks
   ansible.builtin.include_tasks:
     file: "{{ (ansible_os_family == 'Windows') | ternary('windows.yml', 'linux.yml') }}"
