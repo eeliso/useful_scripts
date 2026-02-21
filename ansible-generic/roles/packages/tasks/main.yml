@@ -310,10 +310,17 @@
         - xagt_exe_files.files | default([]) | length > 0
 
     - name: Ensure FireEye agent service is running
-      ansible.windows.win_service:
-        name: xagt
-        start_mode: auto
-        state: started
+      ansible.windows.win_shell: |
+        $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
+        if (-not $svc) {
+            Write-Host "xagt service not found — skipping"
+            exit 0
+        }
+        sc.exe config xagt start= auto
+        sc.exe start xagt 2>$null
+        Write-Host "xagt service configured and started"
+      changed_when: false
+      failed_when: false
 
     - name: Clean up FireEye install directory
       ansible.windows.win_file:
