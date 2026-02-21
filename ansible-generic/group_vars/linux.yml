@@ -13,7 +13,7 @@ config_dest_dir: /etc/
 patch: true
 
 # --- FireEye Agent (local .tgz on control node) ---
-fireeye_package: /home/kali/dev/useful_scripts/ansible-generic/files/IMAGE_HX_AGENT_LINUX_36.30.37.tgz
+fireeye_package: files/IMAGE_HX_AGENT_LINUX_36.30.37.tgz
 
 # --- Patching ---
 # Reboot the server automatically after patching if required

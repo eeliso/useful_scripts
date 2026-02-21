@@ -98,10 +98,20 @@
 # -----------------------------------------------------------------------------
 # FireEye agent from local .zip
 # -----------------------------------------------------------------------------
+- name: Check if FireEye agent service is already running (Windows)
+  ansible.windows.win_shell: |
+    $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
+    if ($svc -and $svc.Status -eq 'Running') { exit 0 } else { exit 1 }
+  register: win_xagt_status
+  changed_when: false
+  failed_when: false
+  when: "'fireeye-agent' in (packages | default([]))"
+
 - name: Install FireEye agent on Windows
   when:
     - "'fireeye-agent' in (packages | default([]))"
     - fireeye_package is defined
+    - win_xagt_status.rc | default(1) != 0
   block:
     - name: Create FireEye install directory
       ansible.windows.win_file:
@@ -138,13 +148,7 @@
         recurse: true
       register: fireeye_win_config_files
 
-    - name: Check if FireEye agent service is already running
-      ansible.windows.win_shell: |
-        $svc = Get-Service -Name xagt -ErrorAction SilentlyContinue
-        if ($svc -and $svc.Status -eq 'Running') { exit 0 } else { exit 1 }
-      register: win_xagt_status
-      changed_when: false
-      failed_when: false
+
 
     - name: Find xagt.exe on the system
       ansible.windows.win_find:

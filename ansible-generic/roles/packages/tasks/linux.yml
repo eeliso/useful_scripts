@@ -41,10 +41,19 @@
 # -----------------------------------------------------------------------------
 # FireEye agent from local .tgz
 # -----------------------------------------------------------------------------
+- name: Check if FireEye agent is already running (Linux)
+  ansible.builtin.command:
+    cmd: systemctl is-active xagt
+  register: linux_xagt_status
+  changed_when: false
+  failed_when: false
+  when: "'fireeye-agent' in (packages | default([]))"
+
 - name: Install FireEye agent on Linux
   when:
     - "'fireeye-agent' in (packages | default([]))"
     - fireeye_package is defined
+    - linux_xagt_status.rc | default(1) != 0
   block:
     - name: Create FireEye install directory
       ansible.builtin.file:
@@ -96,29 +105,6 @@
         patterns: ["agent_config.json"]
         recurse: true
       register: fireeye_config_files
-
-    - name: Check if FireEye agent is already running
-      ansible.builtin.command:
-        cmd: systemctl is-active xagt
-      register: xagt_status
-      changed_when: false
-      failed_when: false
-
-    - name: Import FireEye agent configuration (enroll with HX portal)
-      when:
-        - fireeye_config_files.files | length > 0
-        - xagt_status.rc != 0
-      block:
-        - name: Stop FireEye agent before config import
-          ansible.builtin.service:
-            name: xagt
-            state: stopped
-          failed_when: false
-
-        - name: Run config import
-          ansible.builtin.shell:
-            cmd: /opt/fireeye/bin/xagt -i {{ item.path }}
-          loop: "{{ fireeye_config_files.files }}"
 
     - name: Start and enable FireEye agent service
       ansible.builtin.service:
