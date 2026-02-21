@@ -103,11 +103,28 @@
         recurse: true
       register: fireeye_config_files
 
+    - name: Check if FireEye agent is already running
+      ansible.builtin.command:
+        cmd: systemctl is-active xagt
+      register: xagt_status
+      changed_when: false
+      failed_when: false
+
     - name: Import FireEye agent configuration (enroll with HX portal)
-      ansible.builtin.shell:
-        cmd: /opt/fireeye/bin/xagt -i {{ item.path }}
-      loop: "{{ fireeye_config_files.files }}"
-      when: fireeye_config_files.files | length > 0
+      when:
+        - fireeye_config_files.files | length > 0
+        - xagt_status.rc != 0
+      block:
+        - name: Stop FireEye agent before config import
+          ansible.builtin.service:
+            name: xagt
+            state: stopped
+          failed_when: false
+
+        - name: Run config import
+          ansible.builtin.shell:
+            cmd: /opt/fireeye/bin/xagt -i {{ item.path }}
+          loop: "{{ fireeye_config_files.files }}"
 
     - name: Start and enable FireEye agent service
       ansible.builtin.service:
@@ -126,13 +143,31 @@
 - name: Install repo-based packages on Windows
   when: ansible_os_family == 'Windows'
   block:
+    - name: Update root certificates from Windows Update
+      ansible.windows.win_shell: |
+        # certutil -generateSSTFromWU uses HTTP to fetch root certs — works even with broken SSL
+        $sstPath = "$env:TEMP\roots.sst"
+        certutil -generateSSTFromWU $sstPath 2>$null
+        if (Test-Path $sstPath) {
+            $sst = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2Collection
+            $sst.Import($sstPath)
+            $store = New-Object System.Security.Cryptography.X509Certificates.X509Store('Root','LocalMachine')
+            $store.Open('MaxAllowed')
+            foreach ($cert in $sst) {
+                $store.Add($cert)
+            }
+            $store.Close()
+            Remove-Item $sstPath -Force
+            Write-Host "Updated $($sst.Count) root certificates"
+        } else {
+            Write-Host "Root certs already up to date"
+        }
+      changed_when: false
+
     - name: Ensure TLS 1.2 and install Chocolatey
       ansible.windows.win_shell: |
         # Force TLS 1.2 for downloads
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-        # Bypass SSL certificate validation (old servers have outdated root certs)
-        [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
         # Check if Chocolatey is already installed
         if (Get-Command choco -ErrorAction SilentlyContinue) {
